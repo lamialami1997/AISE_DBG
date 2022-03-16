@@ -2,6 +2,14 @@
 sudo apt-get install libunwind-dev : bibliothèque qui fait facilite les appels système
     une bibliothèque qui repose sur ptrace et qui donne des fonctions plus simple à utiliser , sert à recuperer les informations sur le programme qu'on suis .
 ==>site internet libunwind :https://www.nongnu.org/libunwind/index.html
+-UNW_CREATE_ADDR_SPACE(3)                                                                     Programming Library                                                                     UNW_CREATE_ADDR_SPACE(3)
+       unw_create_addr_space -- create address space for remote unwinding
+
+        
+       #include <libunwind.h>
+
+       unw_addr_space_t unw_create_addr_space(unw_accessors_t *ap, int byteorder);
+
 main.c : 
     execvp(argv[1],  &argv[1]);// argv[1] c'est le fichier ./crash , @du sous tableau qui contient les argument du pg qu'on débug
 -le débug est le pg fils , le père est notre pg main 
