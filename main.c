@@ -12,112 +12,167 @@
 struct UPT_info *ui;
 unw_addr_space_t addr_space;
 unw_cursor_t cursor;
+int pid = 0;
 
-int main(int argc, char  **argv)
-{   //      0       1              ...
-    //argv ./main   ./programme    arg de programme
-    
-    int pid = fork();
-    if (pid==0)
-    {   
+int Attach()
+{
+    int status = 0;
+    /*---- Attachement au processus fils ----*/
+
+    ptrace(PTRACE_SEIZE, pid, NULL, NULL);     // attachement
+    ptrace(PTRACE_INTERRUPT, pid, NULL, NULL); // mise en pause du fils pour attendre le père ( fork ==> parrallèle on sait pas quel processus démarre en 1er )
+    wait(NULL);                                // Mise en pause le père pour attendre le fils
+    ptrace(PTRACE_CONT, pid, NULL, NULL);      // Relancer le fils "Continue"
+    wait(NULL);
+
+    /*---- Création de l'espace de travail du Backtrace ----*/
+
+    addr_space = unw_create_addr_space(&_UPT_accessors, 0);
+    if (!addr_space)
+    {
+        printf("Erreur lors de la creation de l'espace d'adressage \n");
+        return 2;
+    }
+    ui = _UPT_create(pid);
+    if (!ui)
+    {
+        kill(pid, SIGKILL);
+        printf("Erreur lors de la creation de la fonction _UPT_create\n");
+        return 4;
+    }
+    status = 0;
+    status = unw_init_remote(&cursor, addr_space, ui);
+
+    if (status != 0)
+    {
+        _UPT_destroy(ui);
+        if (-status == UNW_EINVAL)
+        {
+            printf("ERREUR: unw_init_remote: UNW_EINVAL\n");
+            return 5;
+        }
+        else if (-status == UNW_EUNSPEC)
+        {
+            printf("ERREUR: unw_init_remote: UNW_EUNSPEC\n");
+            return 6;
+        }
+        else if (-status == UNW_EBADREG)
+        {
+            printf("ERREUR: unw_init_remote: UNW_EBADREG\n");
+            return 7;
+        }
+        else
+        {
+            printf("ERREUR: unw_init_remote: UNKNOWN\n");
+            return 8;
+        }
+    }
+    return 0;
+}
+int Detach()
+{
+    /*---- Detruire l'espace de travail du Libunwind ----*/
+
+    unw_destroy_addr_space(addr_space);
+    _UPT_destroy(ui);
+    /*---- Détachement du processus fils ----*/
+
+    int status = 0;
+    status = ptrace(PTRACE_DETACH, pid, NULL, NULL);
+    if (status == -1)
+    {
+        printf("Erreur lors du déttachement \n");
+        kill(pid, SIGKILL);
+        return 3;
+    }
+    return 0;
+}
+void Backtrace()
+{   unw_cursor_t tmp_cursor = cursor ; 
+    int val = 1;
+    printf("----- Backtrace -----\n");
+    while (val > 0)
+
+    {
+        unw_word_t offset;
+        char c[250];
+        memset(c, 0, sizeof(char) * 250);
+        unw_get_proc_name(&cursor, c, sizeof(char) * 250, &offset);
+        printf("%s 0x%lx \n", c, offset);
+        val = unw_step(&cursor);
+    }
+    cursor = tmp_cursor;
+    printf("----- Fin Backtrace -----\n"); 
+}
+void Registre()
+{
+    unw_word_t reg[17];
+    for(int i=0 ; i<17 ; i++)
+    {
+        unw_get_reg(&cursor,i,&reg[i]);
         
-        execvp(argv[1],  &argv[1]);
+    }
+    printf("----- Registres -----\n");
+    printf("rax: \t0x%lx\t%ld\n",reg[0],reg[0]);
+    printf("rdx: \t0x%lx\t%ld\n",reg[1],reg[1]);
+    printf( "rcx: \t0x%lx\t%ld\n",reg[2],reg[2]);
+    printf("rbx: \t0x%lx\t%ld\n",reg[3],reg[3]);
+    printf("rsi: \t0x%lx\t%ld\n",reg[4],reg[4]);
+    printf("rdi: \t0x%lx\t%ld\n",reg[5],reg[5]);
+    printf("rbp: \t0x%lx\t%ld\n",reg[6],reg[6]);
+    printf("rsp: \t0x%lx\t%ld\n",reg[7],reg[7]);
+    printf("r8:  \t0x%lx\t%ld\n",reg[8],reg[8]);
+    printf("r9:  \t0x%lx\t%ld\n",reg[9],reg[9]);
+    printf("r10: \t0x%lx\t%ld\n",reg[10],reg[10]);
+    printf("r11: \t0x%lx\t%ld\n",reg[11],reg[11]);
+    printf("r12: \t0x%lx\t%ld\n",reg[12],reg[12]);
+    printf("r13: \t0x%lx\t%ld\n",reg[13],reg[13]);
+    printf("r14: \t0x%lx\t%ld\n",reg[14],reg[14]);
+    printf("r15: \t0x%lx\t%ld\n",reg[15],reg[15]);
+    printf("rip: \t0x%lx\t%ld\n",reg[16],reg[16] );
+    printf("----- Fin Registres -----\n");
+    
+}
+
+int main(int argc, char **argv)
+{ //      0       1              ...
+    // argv ./main   ./programme    arg de programme
+    if (argc < 2)
+    {
+        printf("ERREUR: Pas assez d'argument\nUtilisation : %s 'Programme à débug' 'Liste d'arguments'\n", argv[0]);
+        return 1;
+    }
+    pid = fork();
+
+    /*--- Processus fils ---*/
+
+    if (pid == 0)
+    {
+
+        execvp(argv[1], &argv[1]);
         return 0;
     }
-    else 
-    {   
-
-        int status=0;
-        ptrace(PTRACE_SEIZE, pid, NULL, NULL);
-        ptrace(PTRACE_INTERRUPT, pid, NULL,NULL);
-        wait(NULL);
-        ptrace(PTRACE_CONT, pid, NULL,NULL);
-        /* status = ptrace (PTRACE_ATTACH ,pid,NULL, NULL);
-        if (status == -1 )
+    else /*--- Processus père  ---*/
+    {   printf("PID du programme testé :%d\n",pid);
+        int status = Attach();
+        if (status != 0)
         {
-            printf("Erreur lors de l'attachement \n");
-            kill(pid, SIGKILL);
-            return 1;
-        }*/
-        wait(NULL);
-
-        /*---- Création de l'espace de travail du Backtrace ----*/
-
-         addr_space = unw_create_addr_space(&_UPT_accessors, 0);
-         if (!addr_space)
-         {
-             printf("Erreur lors de la creation de l'espace d'adressage \n");
-             return 2;
-         }
-         ui = _UPT_create(pid);
-          if (!ui) 
-            {
-            kill(pid,SIGKILL);
-            printf("Erreur lors de la creation de la fonction _UPT_create\n");
-            return 4;
-            }
-         status = 0 ; 
-         status = unw_init_remote(&cursor , addr_space, ui);
-         
-         if (status!= 0) 
-            {
-                _UPT_destroy(ui);
-                if (-status == UNW_EINVAL) 
-                {
-                    printf("unw_init_remote: UNW_EINVAL\n");
-                    return 5;
-                } 
-                else if (-status == UNW_EUNSPEC) 
-                {
-                    printf("unw_init_remote: UNW_EUNSPEC\n");
-                    return 6;
-                } 
-                else if (-status == UNW_EBADREG) 
-                {
-                    printf("unw_init_remote: UNW_EBADREG\n");
-                    return 7;
-                } 
-                else 
-                {
-                    printf("unw_init_remote: UNKNOWN\n");
-                    return 8;
-                }
-            }
-
-         /*----- Backtrace -----*/
-
-         int val = 1 ;
-         while(val>0)
-         {
-             unw_word_t offset ;
-             char c[250];
-             memset(c, 0, sizeof(char)*250);
-             unw_get_proc_name(&cursor, c , sizeof(char)*250, &offset);
-             printf("%s 0x%lx \n",c , offset);
-             val = unw_step(&cursor);
-
-
-         }
-        /*---- Detruire l'espace de travail du  Backtrace ----*/
-
-        unw_destroy_addr_space(addr_space);
-        _UPT_destroy(ui);
-
-        /*---- FIN Backtrace / Récupération du signal ----*/    
-        siginfo_t  signal;
-        ptrace(PTRACE_GETSIGINFO,pid,NULL,&signal);
-        printf("Le programme a reçu le signal suivant : %d qui a causé son arrêt\n", signal.si_signo);
-        
-        status =0; 
-        status = ptrace (PTRACE_DETACH ,pid,NULL, NULL);
-        if (status == -1){
-             printf("Erreur lors du déttachement \n");
-            kill(pid, SIGKILL);
-            return 3;
+            return status;
         }
+        Backtrace();
+        Registre();
+        /*---- Récupération du signal ----*/
 
+        siginfo_t signal;
+        ptrace(PTRACE_GETSIGINFO, pid, NULL, &signal);
+        printf("Le programme a reçu le signal suivant : %d : %s à l'adresse 0x%p qui a causé son arrêt\n", signal.si_signo, strsignal(signal.si_signo), signal.si_addr);
+
+        /*---- Détachement du processus fils ----*/
+        status = Detach();
+        if (status != 0)
+        {
+            return status;
+        }
     }
-
-
     return 0;
 }

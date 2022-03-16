@@ -1,6 +1,10 @@
+
 run: crash main
 	./main ./crash
 
+erreur: main
+	./main
+	
 run_crash: crash
 	./crash
 

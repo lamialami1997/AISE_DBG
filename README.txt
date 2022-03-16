@@ -9,6 +9,7 @@ sudo apt-get install libunwind-dev : bibliothèque qui fait facilite les appels 
        #include <libunwind.h>
 
        unw_addr_space_t unw_create_addr_space(unw_accessors_t *ap, int byteorder);
+-strsignal(signal.si_signo) : cette fonction permet d'obtenir le signal en fonction de son numéro (entier ==> chaine de caractères)
 
 main.c : 
     execvp(argv[1],  &argv[1]);// argv[1] c'est le fichier ./crash , @du sous tableau qui contient les argument du pg qu'on débug
