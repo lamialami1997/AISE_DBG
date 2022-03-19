@@ -4,9 +4,12 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <libunwind.h>
 #include <string.h>
 #include <libunwind-ptrace.h>
+#include <limits.h>
+
 
 //---- librairie libunwind ----
 struct UPT_info *ui;
@@ -16,14 +19,13 @@ int pid = 0;
 
 int Attach()
 {
-    int status = 0;
-    /*---- Attachement au processus fils ----*/
 
-    ptrace(PTRACE_SEIZE, pid, NULL, NULL);     // attachement
-    ptrace(PTRACE_INTERRUPT, pid, NULL, NULL); // mise en pause du fils pour attendre le père ( fork ==> parrallèle on sait pas quel processus démarre en 1er )
-    wait(NULL);                                // Mise en pause le père pour attendre le fils
-    ptrace(PTRACE_CONT, pid, NULL, NULL);      // Relancer le fils "Continue"
-    wait(NULL);
+    /*---- Attachement au processus fils ----*/
+    waitpid(pid, NULL, 0);
+    ptrace(PTRACE_CONT, pid, NULL, NULL);
+    waitpid(pid, NULL, 0);
+    ptrace(PTRACE_CONT, pid, NULL, NULL);
+    waitpid(pid, NULL, 0);
 
     /*---- Création de l'espace de travail du Backtrace ----*/
 
@@ -40,7 +42,7 @@ int Attach()
         printf("Erreur lors de la creation de la fonction _UPT_create\n");
         return 4;
     }
-    status = 0;
+    int status = 0;
     status = unw_init_remote(&cursor, addr_space, ui);
 
     if (status != 0)
@@ -86,7 +88,7 @@ int Detach()
         return 3;
     }
     kill(pid, SIGKILL);
-    pid=0;
+    pid = 0;
     return 0;
 }
 void Backtrace()
@@ -159,11 +161,15 @@ int run(int argc, char **argv)
 
     if (pid == 0)
     {
+        ptrace(PTRACE_TRACEME, 0, 0, 0);
+        kill(getpid(), SIGSTOP);
+        kill(getppid(), SIGCONT);
         execvp(argv[1], &argv[1]);
         return 0;
     }
     else /*--- Processus père  ---*/
     {
+
         printf("PID du programme testé :%d\n", pid);
         int status = Attach();
         if (status != 0)
@@ -174,7 +180,7 @@ int run(int argc, char **argv)
 
         siginfo_t signal;
         ptrace(PTRACE_GETSIGINFO, pid, NULL, &signal);
-        printf("Le programme %d a reçu le signal suivant : %d : %s à l'adresse 0x%p qui a causé son arrêt\n", pid,signal.si_signo, strsignal(signal.si_signo), signal.si_addr);
+        printf("Le programme %d a reçu le signal suivant : %d : %s à l'adresse 0x%p qui a causé son arrêt\n", pid, signal.si_signo, strsignal(signal.si_signo), signal.si_addr);
     }
     return 0;
 }
@@ -201,6 +207,8 @@ int main(int argc, char **argv)
     /*----- Interface -----*/
     char commande[250];
     memset(commande, 0, sizeof(char) * 250);
+    char buff[250];
+    memset(commande, 0, sizeof(char) * 250);
     while (1)
     {
         fgets(commande, 250, stdin);
@@ -212,6 +220,25 @@ int main(int argc, char **argv)
         else if (strcmp(commande, "backtrace") == 0 || strcmp(commande, "bt") == 0)
         {
             Backtrace();
+        }
+        else if (strcmp(commande ,"registers") == 0 || strcmp(commande,"reg")==0)
+        {
+            Registre();
+        }
+        else if (strcmp(commande ,"info") == 0 )
+        {
+            printf("Le PID  du processus fils  :%d\n",getpid());
+            printf("Le PPID  du processus père :%d\n",getppid());
+            printf("Le GID  :%d\n",getgid());
+            printf("Le chemin du fichier executable :%s\n",realpath(argv[1],buff));
+        }
+        else if (strcmp(commande,"quit")== 0 || strcmp(commande,"q")==0)
+        {
+            if (pid != 0)
+            {
+                Detach();
+            }
+            return 0;
         }
         else
         {
