@@ -159,7 +159,6 @@ int run(int argc, char **argv)
 
     if (pid == 0)
     {
-
         execvp(argv[1], &argv[1]);
         return 0;
     }
@@ -175,7 +174,7 @@ int run(int argc, char **argv)
 
         siginfo_t signal;
         ptrace(PTRACE_GETSIGINFO, pid, NULL, &signal);
-        printf("Le programme a reçu le signal suivant : %d : %s à l'adresse 0x%p qui a causé son arrêt\n", signal.si_signo, strsignal(signal.si_signo), signal.si_addr);
+        printf("Le programme %d a reçu le signal suivant : %d : %s à l'adresse 0x%p qui a causé son arrêt\n", pid,signal.si_signo, strsignal(signal.si_signo), signal.si_addr);
     }
     return 0;
 }
