@@ -10,7 +10,6 @@
 #include <libunwind-ptrace.h>
 #include <limits.h>
 
-
 //---- librairie libunwind ----
 struct UPT_info *ui;
 unw_addr_space_t addr_space;
@@ -91,6 +90,7 @@ int Detach()
     pid = 0;
     return 0;
 }
+/*---- Backtrace ----*/
 void Backtrace()
 {
     if (pid == 0)
@@ -116,6 +116,7 @@ void Backtrace()
         printf("----- Fin Backtrace -----\n");
     }
 }
+/*---- Registres -----*/
 
 void Registre()
 {
@@ -144,6 +145,7 @@ void Registre()
     printf("rip: \t0x%lx\t%ld\n", reg[16], reg[16]);
     printf("----- Fin Registres -----\n");
 }
+/*---- Execution du débugguer ----*/
 int run(int argc, char **argv)
 {
     if (pid != 0)
@@ -167,7 +169,8 @@ int run(int argc, char **argv)
         execvp(argv[1], &argv[1]);
         return 0;
     }
-    else /*--- Processus père  ---*/
+    else
+    /*--- Processus père  ---*/
     {
 
         printf("PID du programme testé :%d\n", pid);
@@ -184,7 +187,7 @@ int run(int argc, char **argv)
     }
     return 0;
 }
-
+/*---- Parser les commandes ----*/
 void parse_commande(char *commande)
 {
     for (int i = 0; i < 250; i++)
@@ -197,14 +200,13 @@ void parse_commande(char *commande)
 }
 
 int main(int argc, char **argv)
-{ //      0       1              ...
-    // argv ./main   ./programme    arg de programme
+{
     if (argc < 2)
     {
         printf("ERREUR: Pas assez d'argument\nUtilisation : %s 'Programme à débug' 'Liste d'arguments'\n", argv[0]);
         return 1;
     }
-    /*----- Interface -----*/
+    /*----- Commandes du débugguer -----*/
     char commande[250];
     memset(commande, 0, sizeof(char) * 250);
     char buff[250];
@@ -221,18 +223,18 @@ int main(int argc, char **argv)
         {
             Backtrace();
         }
-        else if (strcmp(commande ,"registers") == 0 || strcmp(commande,"reg")==0)
+        else if (strcmp(commande, "registers") == 0 || strcmp(commande, "reg") == 0)
         {
             Registre();
         }
-        else if (strcmp(commande ,"info") == 0 )
+        else if (strcmp(commande, "info") == 0)
         {
-            printf("Le PID  du processus fils  :%d\n",getpid());
-            printf("Le PPID  du processus père :%d\n",getppid());
-            printf("Le GID  :%d\n",getgid());
-            printf("Le chemin du fichier executable :%s\n",realpath(argv[1],buff));
+            printf("Le PID  du processus fils  :%d\n", getpid());
+            printf("Le PPID  du processus père :%d\n", getppid());
+            printf("Le GID  :%d\n", getgid());
+            printf("Le chemin du fichier executable :%s\n", realpath(argv[1], buff));
         }
-        else if (strcmp(commande,"quit")== 0 || strcmp(commande,"q")==0)
+        else if (strcmp(commande, "quit") == 0 || strcmp(commande, "q") == 0)
         {
             if (pid != 0)
             {

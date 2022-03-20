@@ -8,7 +8,7 @@ erreur: main
 run_crash: crash
 	./crash
 
-compile: main crash
+compile: main 
 
 crash: crash.c	
 	gcc crash.c -o crash -g
