@@ -42,4 +42,4 @@ Ce travail nous permet de lancer un programme débugguer et capturer son fonctio
 - Consulter l'état de la mémoire des registres .
 - Informations basiques du programme.
 Quand l'analyse du débugguage sera terminée,tapez la commande "quit" ou "q" pour quitter le débugguer .
-NB: Les fonctions principales comme l'attachement et détachement des processus ainsi que backtrace , registres , run ... sont commenter dans le programme main.c
+- NB: Les fonctions principales comme l'attachement et détachement des processus ainsi que backtrace , registres , run ... sont commenter dans le programme main.c
