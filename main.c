@@ -164,9 +164,9 @@ int run(int argc, char **argv)
     if (pid == 0)
     {
         ptrace(PTRACE_TRACEME, 0, 0, 0);
-        kill(getpid(), SIGSTOP);
-        kill(getppid(), SIGCONT);
-        execvp(argv[1], &argv[1]);
+        kill(getpid(), SIGSTOP);  // fils en pause
+        kill(getppid(), SIGCONT); // fils envoi un signal pour que le processus père continue
+        execvp(argv[1], &argv[1]); // execution du code attaché
         return 0;
     }
     else
@@ -182,7 +182,7 @@ int run(int argc, char **argv)
         /*---- Récupération du signal ----*/
 
         siginfo_t signal;
-        ptrace(PTRACE_GETSIGINFO, pid, NULL, &signal);
+        ptrace(PTRACE_GETSIGINFO, pid, NULL, &signal); 
         printf("Le programme %d a reçu le signal suivant : %d : %s à l'adresse 0x%p qui a causé son arrêt\n", pid, signal.si_signo, strsignal(signal.si_signo), signal.si_addr);
     }
     return 0;
@@ -205,14 +205,23 @@ int main(int argc, char **argv)
     {
         printf("ERREUR: Pas assez d'argument\nUtilisation : %s 'Programme à débug' 'Liste d'arguments'\n", argv[0]);
         return 1;
-    }
+    }   
+        printf("---------------------- Commandes du débugger ---------------------- \n\n");
+        printf("\t-Tapez la commande 'run' ou 'r' pour  lancer le programme à debugguer.\n");
+        printf("\t-Tapez la commande 'backtrace' ou 'bt' pour capturer l'état de l'application au moment de l'erreur .\n");
+        printf("\t-Tapez la commande 'info' pour afficher les informations basiques du programme (PID , PPID , GID , chemin global 'localisation du programme').\n");
+        printf("\t-Tapez la commande 'registre' ou 'reg' pour afficher des registres.\n");
+        printf("\t-La commande 'quit' ou 'q' pour quitter le programme débogueur.\n\n");
+        printf("------------------------------------------------------------------- \n");
+
     /*----- Commandes du débugguer -----*/
     char commande[250];
     memset(commande, 0, sizeof(char) * 250);
     char buff[250];
     memset(commande, 0, sizeof(char) * 250);
     while (1)
-    {
+    {   
+        printf("\ndbg-> ");
         fgets(commande, 250, stdin);
         parse_commande(commande);
         if (strcmp(commande, "run") == 0 || strcmp(commande, "r") == 0)
